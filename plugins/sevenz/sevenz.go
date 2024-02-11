@@ -2,6 +2,7 @@ package sevenz
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -34,12 +35,16 @@ func (sz Sevenz) Extract(srcPath, destPath, password string) error {
 }
 
 func (sz Sevenz) ExtractAble(srcPath string) bool {
-	return strings.HasSuffix(srcPath, ".001") || strings.HasSuffix(srcPath, ".7z")
+	return true
 }
 
 func (sz Sevenz) FileName(srcPath string) string {
 	tmp := strings.Split(srcPath, ".")
-	if strings.HasSuffix(srcPath, ".001") {
+	if strings.HasSuffix(srcPath, ".7z.001") {
+		return strings.Join(tmp[:len(tmp)-2], ".")
+	} else if strings.HasSuffix(srcPath, "7z.001") {
+		return srcPath[:len(srcPath)-6]
+	} else if strings.HasSuffix(srcPath, ".001") {
 		return strings.Join(tmp[:len(tmp)-2], ".")
 	}
 	return strings.Join(tmp[:len(tmp)-1], ".")
@@ -52,10 +57,9 @@ func Extract(archiveFullPath, destFullPath string, opts ...Options) error {
 	opt.Args = append(opt.Args, archiveFullPath)
 
 	cmd := exec.Command(sevenCmd, append([]string{extractCmd}, opt.Arg()...)...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(out)
-	}
+	cmd.Stdout = os.Stdout
+	cmd.Start()
+	err := cmd.Wait()
 	return err
 }
 
@@ -65,10 +69,9 @@ func ExtractWoFolders(archiveFullPath, destFullPath string, opts ...Options) err
 	opt.Args = append(opt.Args, archiveFullPath)
 
 	cmd := exec.Command(sevenCmd, append([]string{extractWoFolders}, opt.Arg()...)...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(out)
-	}
+	cmd.Stdout = os.Stdout
+	cmd.Start()
+	err := cmd.Wait()
 	return err
 }
 
@@ -79,10 +82,10 @@ func CompressInsane(archiveFullPath string, srcFullPath []string, opts ...Option
 	//cmd := exec.Command(sevenCmd, archiveCmd, archiveType, insaneCompressionParams, archiveFullPath, srcFullPath)
 	cmd := exec.Command(sevenCmd, append([]string{archiveCmd, archiveType}, opt.Arg()...)...)
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(out)
-	}
+	fmt.Println(cmd.String())
+	cmd.Stdout = os.Stdout
+	cmd.Start()
+	err := cmd.Wait()
 	return err
 }
 

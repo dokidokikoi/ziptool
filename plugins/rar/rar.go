@@ -1,7 +1,7 @@
 package rar
 
 import (
-	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -34,10 +34,9 @@ func (r Rar) CompressWithPwd(srcPath []string, destPath, password string) error 
 		args = append(args, strings.ReplaceAll(passwordSw, passwordPattern, password))
 	}
 	cmd := exec.Command(rarCmd, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(out)
-	}
+	cmd.Stdout = os.Stdout
+	cmd.Start()
+	err := cmd.Wait()
 	return err
 }
 func (r Rar) CompressVolumes(srcPath []string, destPath string, size string) error {
@@ -52,10 +51,9 @@ func (r Rar) CompressWithPwdVolumes(srcPath []string, destPath, password string,
 		args = append(args, strings.ReplaceAll(passwordSw, passwordPattern, password))
 	}
 	cmd := exec.Command(rarCmd, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(out)
-	}
+	cmd.Stdout = os.Stdout
+	cmd.Start()
+	err := cmd.Wait()
 	return err
 }
 
@@ -67,10 +65,9 @@ func (r Rar) Extract(srcPath, destPath, password string) error {
 		args = append(args, strings.ReplaceAll(passwordSw, passwordPattern, password))
 	}
 	cmd := exec.Command(rarCmd, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Println(out)
-	}
+	cmd.Stdout = os.Stdout
+	cmd.Start()
+	err := cmd.Wait()
 	return err
 }
 

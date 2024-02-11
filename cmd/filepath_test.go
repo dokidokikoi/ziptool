@@ -34,10 +34,11 @@ func TestDirFiles(t *testing.T) {
 }
 
 func TestType(t *testing.T) {
-	ty, err := filetype.MatchFile("../plugins/example/image.part2.rar")
+	ty, err := filetype.MatchFile("../plugins/example/image.7z.002")
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Println(ty.MIME.Value)
 }
 

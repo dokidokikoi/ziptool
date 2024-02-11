@@ -24,8 +24,8 @@ import (
 )
 
 var (
-	cfgFile string
-	bufSize int64 = 1024 * 1024
+	cfgFile   string
+	copyLimit int64 = 100 << 20
 )
 
 const (
@@ -84,33 +84,25 @@ var rootCmd = &cobra.Command{
 			}
 			p := dis(path)
 			if p == nil {
-				buf, _ := os.ReadFile(path)
+				f, err := os.Open(path)
+				if err != nil {
+					log.Add(log.Log{Path: path, Result: err.Error(), CreateTime: time.Now(), Flag: log.FAIL})
+					return nil
+				}
+				buf := make([]byte, 1024)
+				io.ReadFull(f, buf)
 				var ty = log.ETC
 				if filetype.IsImage(buf) {
 					ty = log.IMAGE
 				}
-				f, err := os.Open(path)
-				if err != nil {
-					log.Failed(log.Log{Path: path, Result: err.Error(), CreateTime: time.Now(), Type: ty})
-					return nil
+				info, _ := f.Stat()
+				if info.Size() < copyLimit {
+					woker.AddTask(woker.Task{
+						Src:  path,
+						Dest: target,
+						Type: ty,
+					})
 				}
-				targetF, err := os.Create(target)
-				if err != nil {
-					log.Failed(log.Log{Path: path, Result: err.Error(), CreateTime: time.Now(), Type: ty})
-					return nil
-				}
-				for {
-					_, err := io.CopyN(targetF, f, bufSize)
-					if err != nil {
-						if errors.Is(err, io.EOF) {
-							break
-						} else {
-							log.Add(log.Log{Path: path, Result: err.Error(), CreateTime: time.Now(), Type: ty})
-							return nil
-						}
-					}
-				}
-				log.Success(log.Log{Path: path, Result: "success", CreateTime: time.Now(), Type: ty})
 			} else {
 				if p.ExtractAble(path) {
 					woker.AddTask(woker.Task{
@@ -119,6 +111,7 @@ var rootCmd = &cobra.Command{
 						TmpDir:    filepath.Join(targetDir, fmt.Sprintf("%d", time.Now().Unix())),
 						Zipper:    p,
 						Passwords: passwords,
+						Type:      log.ARCHIVE,
 					})
 				}
 			}

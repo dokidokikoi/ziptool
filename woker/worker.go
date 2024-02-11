@@ -1,6 +1,9 @@
 package woker
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -11,6 +14,7 @@ import (
 	"ziptool/plugins/sevenz"
 )
 
+var bufSize int64 = 1024 * 1024
 var wpIns = wokerPool{}
 var sizeLimit int64 = 3 << 30
 var volumesSize = "2000m"
@@ -35,50 +39,74 @@ type Task struct {
 	Passwords []string
 	Size      int64
 	Zipper    plugins.IPlugin
+	Type      string
 }
 
 func (t Task) Run() error {
-	err := os.MkdirAll(t.TmpDir, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(t.TmpDir)
-	f, err := os.Open(t.Src)
-	if err != nil {
-		return err
-	}
-	info, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	err = t.Zipper.Extract(t.Src, t.TmpDir, "")
-	for i := 0; err != nil && i < len(t.Passwords); i++ {
-		err = t.Zipper.Extract(t.Src, t.TmpDir, t.Passwords[i])
-	}
-	if err != nil {
-		return err
-	}
-	dest := t.Zipper.FileName(t.Dest) + ".7z"
-	sz := sevenz.Sevenz{}
-	files := []string{}
-	dirs, err := os.ReadDir(t.TmpDir)
-	if err != nil {
-		return err
-	}
-	for _, d := range dirs {
-		files = append(files, filepath.Join(t.TmpDir, d.Name()))
-	}
-	if info.Size() > sizeLimit {
-		err = sz.CompressVolumes(files, dest, volumesSize)
+	if t.Type == log.ARCHIVE {
+		err := os.MkdirAll(t.TmpDir, os.ModePerm)
 		if err != nil {
 			return err
+		}
+		defer os.RemoveAll(t.TmpDir)
+		f, err := os.Open(t.Src)
+		if err != nil {
+			return err
+		}
+		info, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		err = t.Zipper.Extract(t.Src, t.TmpDir, "")
+		for i := 0; err != nil && i < len(t.Passwords); i++ {
+			err = t.Zipper.Extract(t.Src, t.TmpDir, t.Passwords[i])
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Println("Extract completed", t.Src)
+		dest := t.Zipper.FileName(t.Dest) + ".7z"
+		sz := sevenz.Sevenz{}
+		files := []string{}
+		dirs, err := os.ReadDir(t.TmpDir)
+		if err != nil {
+			return err
+		}
+		for _, d := range dirs {
+			files = append(files, filepath.Join(t.TmpDir, d.Name()))
+		}
+		if info.Size() > sizeLimit {
+			err = sz.CompressVolumes(files, dest, volumesSize)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = sz.Compress(files, dest)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
-		err = sz.Compress(files, dest)
+		f, err := os.Open(t.Src)
 		if err != nil {
 			return err
 		}
+		targetF, err := os.Create(t.Dest)
+		if err != nil {
+			return err
+		}
+		for {
+			_, err := io.CopyN(targetF, f, bufSize)
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				} else {
+					return err
+				}
+			}
+		}
 	}
+
 	return nil
 }
 
@@ -106,9 +134,9 @@ func Run() {
 				case t := <-wpIns.tasks:
 					err := t.Run()
 					if err != nil {
-						log.Add(log.Log{Path: t.Src, Result: err.Error(), CreateTime: time.Now(), Flag: log.FAIL, Type: log.ARCHIVE})
+						log.Add(log.Log{Path: t.Src, Result: err.Error(), CreateTime: time.Now(), Flag: log.FAIL, Type: t.Type})
 					} else {
-						log.Add(log.Log{Path: t.Src, Result: "success", CreateTime: time.Now(), Flag: log.SUCC, Type: log.ARCHIVE})
+						log.Add(log.Log{Path: t.Src, Result: "success", CreateTime: time.Now(), Flag: log.SUCC, Type: t.Type})
 					}
 					Process(t)
 				case <-wpIns.finished:
