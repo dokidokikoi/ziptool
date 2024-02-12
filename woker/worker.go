@@ -129,7 +129,6 @@ func Run() {
 			for {
 				select {
 				case <-wpIns.close:
-					log.Close()
 					return
 				case t := <-wpIns.tasks:
 					err := t.Run()

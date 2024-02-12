@@ -6,8 +6,10 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"ziptool/flag"
@@ -119,8 +121,17 @@ var rootCmd = &cobra.Command{
 			return nil
 		})
 		woker.RunBar()
-
+		go func() {
+			c := make(chan os.Signal)
+			signal.Notify(c, syscall.SIGINT)
+			<-c
+			fmt.Println()
+			fmt.Println("program exiting ...")
+			woker.Close()
+		}()
 		flag.Wait.Wait()
+		log.Close()
+		flag.LogWait.Wait()
 	},
 }
 

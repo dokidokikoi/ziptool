@@ -2,6 +2,7 @@ package log
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -45,12 +46,13 @@ func init() {
 		close: make(chan struct{}),
 	}
 	logfile := time.Now().Format("2006-01-02_15:04:05")
-	flag.Wait.Add(1)
+	flag.LogWait.Add(1)
 	go func() {
-		defer flag.Wait.Done()
+		defer flag.LogWait.Done()
 		for {
 			select {
 			case <-lc.close:
+				fmt.Printf("succ %d, fail %d\n", len(lc.success), len(lc.failed))
 				if len(lc.success) > 0 {
 					lsf, err := os.Create("log_" + logfile + "_success.json")
 					if err != nil {
