@@ -49,14 +49,7 @@ func (t Task) Run() error {
 			return err
 		}
 		defer os.RemoveAll(t.TmpDir)
-		f, err := os.Open(t.Src)
-		if err != nil {
-			return err
-		}
-		info, err := f.Stat()
-		if err != nil {
-			return err
-		}
+
 		err = t.Zipper.Extract(t.Src, t.TmpDir, "")
 		for i := 0; err != nil && i < len(t.Passwords); i++ {
 			err = t.Zipper.Extract(t.Src, t.TmpDir, t.Passwords[i])
@@ -75,7 +68,7 @@ func (t Task) Run() error {
 		for _, d := range dirs {
 			files = append(files, filepath.Join(t.TmpDir, d.Name()))
 		}
-		if info.Size() > sizeLimit {
+		if dirSize(t.TmpDir) > sizeLimit {
 			err = sz.CompressVolumes(files, dest, volumesSize)
 			if err != nil {
 				return err
@@ -162,4 +155,21 @@ func Finished() {
 
 func Add(t Task) {
 	wpIns.tasks <- t
+}
+
+func dirSize(path string) int64 {
+	var size int64
+	err := filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		return 0
+	}
+	return size
 }
